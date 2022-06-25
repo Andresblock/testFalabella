@@ -1,13 +1,19 @@
 // Definicion de la aplicacion:
 
-const exprees = require('express')
+const express = require('express')
 const cors = require('cors')
+const mysqlConn = require('./config/mysql')
 
-const app = exprees()
+const app = express()
 
 // Definicion de middleware
 
 app.use(cors())
+app.use(express.json());
+
+// Se hace referencia a las rutas generadas
+app.use(require('./routes/vehiculos'));
+app.use(require('./routes/estancia'));
 
 // Especificacion de puerto:
 
@@ -17,3 +23,4 @@ const port = 3000; // El puerto puede especificarse por variable de entorno, est
 app.listen(port, ()=>{
     console.log(`Aplicacion en el puerto ${port}`)
 })
+
