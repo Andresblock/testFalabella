@@ -46,14 +46,12 @@ router.post('/estancia/entrada', (req, res) => {
             idVehiculo = id_vehiculo
             // Se recupera la llave del vehiculo a traves de la placa, se procede al registro de la entrada:
             registraVehiculo()
-        } else {
-            res.json({ Status: 'No se ha podido crear el registro' });
         }
     });
 
     // Funcion para el registro de la entrada de un vehiculo:
     function registraVehiculo() {
-        
+
         // Definicion del objeto vehiculo para el registro de entrada:
         let vehiculo = { id_vehiculo: idVehiculo };
 
@@ -75,20 +73,111 @@ router.post('/estancia/salida', (req, res) => {
     // Definicion de campos a insertar:    
     const estancia = req.body;
 
-    // Definicion de query:
-    const query = 'INSERT INTO fbl_estancias SET ?;';
+    // Definicion de query, para generar una salida, se debe identificar la entrada registrada segun la placa
 
-    // Proceso normal de creacion de registros:
+    const vehiculo = `SELECT id_vehiculo, tipo_vehiculo FROM fbl_vehiculos WHERE placa = "${estancia.placa}"`;
 
-    mysqlConn.query(query, [estancia], (err, rows, fields) => {
+    // Consulta datos del vehiculo:
+
+    let datVehiculo = ''
+
+    mysqlConn.query(vehiculo, (err, rows, fields) => {
         if (!err) {
-            res.json({ Status: 200, Menssage: 'Registro creado.', Id: rows.insertId });
-        } else {
-            res.json({ Status: 'No se ha podido crear el registro' });
-            console.log('El insert es:', query);
-            console.log('los parametros son:', parametros);
+            datVehiculo = JSON.stringify(rows[0])
+            validaIngreso()
         }
     });
+
+    // Definicion de funcion para tratar los datos del vehiculo para su salida:
+
+    function validaIngreso() {
+        let datSalida = JSON.parse(datVehiculo)
+
+        // A partir de la informacion del vehiculo se consulta el ingreso:
+
+        const ingreso = `SELECT id_estancia, id_vehiculo FROM fbl_estancias WHERE id_vehiculo = ${datSalida.id_vehiculo}
+        AND IFNULL(fecha_salida, '0') = 0;`
+
+        let datIngreso = ''
+
+        mysqlConn.query(ingreso, (err, rows, fields) => {
+            if (!err) {
+
+                if (rows.length > 0) {
+                    datIngreso = JSON.stringify(rows[0])
+                    salida(datIngreso, datSalida)
+                } else {
+                    res.json({ Status: 201, Message: 'Este vehiculo no tiene un registro de ingreso.' })
+                }
+
+            }
+        });
+
+    }
+
+    // Funcion de registro de la salida
+
+    function salida(datIngreso, datSalida) {
+
+        let infIngreso = JSON.parse(datIngreso)
+        
+        // Ejecucion de query para procesar la salida:
+
+        let regSalida = '';
+
+        switch (datSalida.tipo_vehiculo) {
+            case 'Oficial':
+
+                regSalida = `UPDATE fbl_estancias SET fecha_salida = NOW()
+                WHERE id_vehiculo = ${infIngreso.id_vehiculo} AND IFNULL(fecha_salida, '0') = 0;`
+
+                mysqlConn.query(regSalida, (err, rows, fields) => {
+                    if (!err) {
+                        res.json({ Status: 200, Message: 'Salida registrada con exito' })
+                    } else {
+                        res.json(err)
+                    }
+                });
+
+                break;
+
+            case 'No residente':
+
+                regSalida = `UPDATE fbl_estancias SET fecha_salida = NOW(), tiempo_estancia = TIMESTAMPDIFF(MINUTE,fecha_ingreso,NOW()) 
+                WHERE id_vehiculo = ${infIngreso.id_vehiculo} AND IFNULL(fecha_salida, '0') = 0;`
+
+                mysqlConn.query(regSalida, (err, rows, fields) => {
+                    if (!err) {
+                        importe(infIngreso)
+                    } else {
+                        res.json(err)
+                    }
+                });
+
+                function importe(infIngreso) {
+                    let importe = ` SELECT tiempo_estancia tiempo, 0.2 valor, tiempo_estancia * 0.2 pago FROM fbl_estancias 
+                    WHERE id_estancia = ${infIngreso.id_estancia};`
+
+                    mysqlConn.query(importe, (err, rows, fields) => {
+                        if (!err) {
+                            let valImporte = rows[0].pago
+                            res.json({ Status: 200, Message: 'Vehiculo No residente en salida', Importe: valImporte})
+
+                        } else {
+                            res.json(err)
+                        }
+                    });
+                }
+
+
+                break;
+
+            default:
+                break;
+        }
+
+    }
+
 })
 
 // Se exporta router como modulo generarl
