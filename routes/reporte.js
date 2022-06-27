@@ -67,10 +67,9 @@ router.post('/reporte/pagoResidente', (req, res) => {
 
         fs.appendFile(`${ruta}/${archivo}.txt`,reporte,'utf-8',(err)=>{
             if(err){
-                // res.json({Status: 500, Message: 'Se ha presentado un error al momento de generar el reporte.'})
-                console.log(err)
+                res.json({Status: 500, Message: 'Se ha presentado un error al momento de generar el reporte.'})
             }
-            res.json({Status: 200, Message: 'Se ha generado el reporte.'})
+            res.json({Status: 200, Message: 'Se ha generado el reporte.', Ruta: ruta})
         })
 
     }
