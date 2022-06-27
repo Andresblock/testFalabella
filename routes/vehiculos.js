@@ -3,7 +3,6 @@
 const express = require('express')
 const router = express.Router()
 const mysqlConn = require('../config/mysql')
-const { json } = require('express')
 
 // Consulta de vehiculos:
 

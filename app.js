@@ -2,7 +2,6 @@
 
 const express = require('express')
 const cors = require('cors')
-const mysqlConn = require('./config/mysql')
 
 const app = express()
 
@@ -14,6 +13,8 @@ app.use(express.json());
 // Se hace referencia a las rutas generadas
 app.use(require('./routes/vehiculos'));
 app.use(require('./routes/estancia'));
+app.use(require('./routes/mes'));
+app.use(require('./routes/reporte'));
 
 // Especificacion de puerto:
 
