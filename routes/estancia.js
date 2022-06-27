@@ -8,7 +8,8 @@ const mysqlConn = require('../config/mysql')
 
 router.get('/estancia', (req, res) => {
 
-    const consulta = 'SELECT * FROM fbl_estancias';
+    const consulta = `SELECT a.id_estancia, b.placa, a.fecha_ingreso, a.fecha_salida, a.tiempo_estancia, a.tiempo_acumulado
+    FROM fbl_estancias a LEFT JOIN fbl_vehiculos b ON a.id_vehiculo = b.id_vehiculo`;
 
     mysqlConn.query(consulta, (err, rows, fields) => {
         if (!err) {
