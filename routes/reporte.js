@@ -61,10 +61,12 @@ router.post('/reporte/pagoResidente', (req, res) => {
             reporte += '\n'
         })
 
-        // Generacion del archivo:
+        // Proceso para la eneracion del archivo:
 
+        // Ruta donde se colocara el archivo generado raiz/repositorio:
         let ruta = path.join(__dirname,'../repositorio/')
 
+        // Funcion para la generacion del archivo:
         fs.appendFile(`${ruta}/${archivo}.txt`,reporte,'utf-8',(err)=>{
             if(err){
                 res.json({Status: 500, Message: 'Se ha presentado un error al momento de generar el reporte.'})

@@ -34,34 +34,48 @@ router.post('/estancia/entrada', (req, res) => {
     const estancia = req.body;
 
     // Definicion de query:
-    const query = 'INSERT INTO fbl_estancias SET ?';
+    let query = 'INSERT INTO fbl_estancias SET ?';
 
     // Consultar la placa del vehiculo:
-    let idVehiculo = '';
-    const placa = `SELECT id_vehiculo from fbl_vehiculos where placa = "${estancia.id_vehiculo}"`;
+    const placa = `SELECT a.id_vehiculo, a.tipo_vehiculo, COUNT(b.id_estancia) entrada FROM fbl_vehiculos a LEFT JOIN fbl_estancias b
+    ON a.id_vehiculo = b.id_vehiculo 
+    WHERE a.placa = "${estancia.id_vehiculo}"`;
 
     mysqlConn.query(placa, (err, rows, fields) => {
         if (!err) {
-            let id_vehiculo = rows[0].id_vehiculo
-            idVehiculo = id_vehiculo
+            let datVehiculo = JSON.stringify(rows[0])
             // Se recupera la llave del vehiculo a traves de la placa, se procede al registro de la entrada:
-            registraVehiculo()
+            registraVehiculo(datVehiculo)
         }
     });
 
     // Funcion para el registro de la entrada de un vehiculo:
-    function registraVehiculo() {
+    function registraVehiculo(datVehiculo) {
 
+        let dVehiculo = JSON.parse(datVehiculo)
         // Definicion del objeto vehiculo para el registro de entrada:
-        let vehiculo = { id_vehiculo: idVehiculo };
+        let vehiculo = { id_vehiculo: dVehiculo.id_vehiculo };
 
-        mysqlConn.query(query, [vehiculo], (err, rows, fields) => {
-            if (!err) {
-                res.json({ Status: 200, Menssage: 'Registro creado.', Id: rows.insertId });
-            } else {
-                res.json({ Status: 'No se ha podido crear el registro' });
-            }
-        });
+        if(dVehiculo.tipo_vehiculo == 'Residente' && dVehiculo.entrada > 0){
+            query = `UPDATE fbl_estancias SET fecha_ingreso= NOW() WHERE id_vehiculo = ?`
+
+            mysqlConn.query(query, [dVehiculo.id_vehiculo], (err, rows, fields) => {
+                if (!err) {
+                    res.json({ Status: 200, Menssage: 'Registro creado.'});
+                } else {
+                    res.json({ Status: 'No se ha podido crear el registro' });
+                }
+            });
+        }else{
+            mysqlConn.query(query, [vehiculo], (err, rows, fields) => {
+                if (!err) {
+                    res.json({ Status: 200, Menssage: 'Registro creado.', Id: rows.insertId });
+                } else {
+                    res.json({ Status: 'No se ha podido crear el registro' });
+                }
+            });
+        }
+
     }
 
 })
@@ -138,6 +152,37 @@ router.post('/estancia/salida', (req, res) => {
                         res.json(err)
                     }
                 });
+
+                break;
+            
+            case 'Residente':
+
+                let salidaResidente = `UPDATE fbl_estancias SET fecha_salida = NOW(),
+                tiempo_acumulado = tiempo_acumulado + (TIMESTAMPDIFF(MINUTE,fecha_ingreso,NOW()))
+                WHERE id_vehiculo = ${infIngreso.id_vehiculo} AND IFNULL(fecha_salida, '0') = 0;`
+
+                mysqlConn.query(salidaResidente, (err, rows, fields) => {
+                    if (!err) {
+                        reinicioEstancia()
+                    } else {
+                        res.json(err)
+                    }
+                });
+
+                function reinicioEstancia(){
+
+                    let reinicio = `UPDATE fbl_estancias SET fecha_ingreso= NULL , fecha_salida = NULL 
+                    WHERE id_vehiculo = ${infIngreso.id_vehiculo}`
+
+                    mysqlConn.query(reinicio, (err, rows, fields) => {
+                        if (!err) {
+                            res.json({Status: 200, Message: 'Registro de salida exitoso'})
+                        } else {
+                            res.json(err)
+                        }
+                    });
+                    
+                }
 
                 break;
 
